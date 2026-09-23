@@ -23,6 +23,8 @@ ILLEGAL_VALUE = 0x03
 
 
 class ModbusServer:
+    name = "modbus"
+
     def __init__(
         self,
         tags: TagRegistry,
@@ -96,6 +98,22 @@ class ModbusServer:
                     frame = struct.pack(">HHHB", transaction, protocol, len(response) + 1, unit)
                     with contextlib.suppress(OSError):
                         conn.sendall(frame + response)
+
+    def describe(self) -> dict[str, Any]:
+        return {
+            "endpoint": f"{self.host}:{self.port}",
+            "unit": self.unit_id,
+            "tags": {
+                tag.name: {
+                    "table": tag.table,
+                    "ref": tag.ref,
+                    "size": tag.size,
+                    "access": tag.access,
+                    "kind": tag.kind,
+                }
+                for tag in self.tags.all()
+            },
+        }
 
     def _handle(self, pdu: bytes) -> bytes | None:
         function = pdu[0]

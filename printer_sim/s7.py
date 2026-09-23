@@ -9,6 +9,8 @@ from .tags import BOOL, INT, REAL, STR, TagRegistry
 
 
 class S7Server:
+    name = "s7"
+
     def __init__(
         self,
         tags: TagRegistry,
@@ -78,6 +80,7 @@ class S7Server:
 
     def describe(self) -> dict[str, Any]:
         return {
+            "endpoint": f"{self.host}:{self.port}",
             "db": self.db_number,
             "size": self.size,
             "tags": {

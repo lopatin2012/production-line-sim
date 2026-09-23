@@ -74,23 +74,19 @@ async def run(args: argparse.Namespace) -> None:
     if args.autostart:
         line.control("start")
     line.events.publish("boot", "Симулятор линии запущен")
-    httpd = start_control(
-        simulator, args.control_host, args.control_port, line=line, plc=plc
-    )
-    threading.Thread(target=httpd.serve_forever, daemon=True).start()
-    logger.info("control API + HMI on http://%s:%s", args.control_host, args.control_port)
+    adapters: list = []
     modbus = None
     if args.modbus:
         modbus = ModbusServer(line.tags, args.modbus_host, args.modbus_port, args.modbus_unit)
         try:
             modbus.start()
+            adapters.append(modbus)
             logger.info(
                 "Modbus TCP on %s:%s (unit %s)", args.modbus_host, modbus.port, args.modbus_unit
             )
         except OSError as exc:
             logger.warning("Modbus TCP не запущен: %s", exc)
             modbus = None
-    adapters: list = []
     opcua = None
     if args.opcua:
         try:
@@ -133,6 +129,16 @@ async def run(args: argparse.Namespace) -> None:
         except Exception as exc:
             logger.warning("S7 не запущен: %s", exc)
             s7 = None
+    httpd = start_control(
+        simulator,
+        args.control_host,
+        args.control_port,
+        line=line,
+        plc=plc,
+        adapters=adapters,
+    )
+    threading.Thread(target=httpd.serve_forever, daemon=True).start()
+    logger.info("control API + HMI on http://%s:%s", args.control_host, args.control_port)
     ticker = asyncio.create_task(_tick_loop(line, plc, adapters))
     try:
         await asyncio.gather(*(server.serve_forever() for server in servers))

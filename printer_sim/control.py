@@ -25,7 +25,9 @@ def make_handler(
     simulator: Simulator,
     line: LineEngine | None = None,
     plc: SoftPlc | None = None,
+    adapters: list | None = None,
 ):
+    adapters = list(adapters or [])
     class ControlHandler(BaseHTTPRequestHandler):
         server_version = "production-line-sim"
 
@@ -98,6 +100,16 @@ def make_handler(
             if parts == ["plc"] and plc is not None:
                 self._send(200, plc.snapshot())
                 return
+            if parts == ["protocols"]:
+                self._send(
+                    200,
+                    {
+                        adapter.name: adapter.describe()
+                        for adapter in adapters
+                        if hasattr(adapter, "describe")
+                    },
+                )
+                return
             if len(parts) == 2 and parts[0] == "printers":
                 printer = simulator.get(parts[1])
                 if printer is None:
@@ -169,6 +181,7 @@ def start_control(
     port: int,
     line: LineEngine | None = None,
     plc: SoftPlc | None = None,
+    adapters: list | None = None,
 ) -> ThreadingHTTPServer:
-    httpd = ThreadingHTTPServer((host, port), make_handler(simulator, line, plc))
+    httpd = ThreadingHTTPServer((host, port), make_handler(simulator, line, plc, adapters))
     return httpd

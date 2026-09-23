@@ -100,6 +100,25 @@ def test_line_api():
         httpd.server_close()
 
 
+def test_protocols_endpoint():
+    from printer_sim.modbus import ModbusServer
+
+    printer = PrinterState(name="sim", port=0)
+    simulator = Simulator([printer])
+    line = LineEngine([printer])
+    modbus = ModbusServer(line.tags, "127.0.0.1", 15020)
+    httpd = start_control(simulator, "127.0.0.1", 0, line=line, adapters=[modbus])
+    port = httpd.server_address[1]
+    threading.Thread(target=httpd.serve_forever, daemon=True).start()
+    base = f"http://127.0.0.1:{port}"
+    try:
+        protocols = _request("GET", f"{base}/protocols")
+        assert protocols["modbus"]["tags"]["line.start"]["table"] == "coil"
+    finally:
+        httpd.shutdown()
+        httpd.server_close()
+
+
 def test_plc_api():
     printer = PrinterState(name="sim", port=0)
     simulator = Simulator([printer])

@@ -19,6 +19,8 @@ def _variant_type(tag: Tag) -> Any:
 
 
 class OpcUaServer:
+    name = "opcua"
+
     def __init__(
         self,
         tags: TagRegistry,
@@ -62,6 +64,14 @@ class OpcUaServer:
             with contextlib.suppress(Exception):
                 await self._server.stop()
             self._server = None
+
+    def describe(self) -> dict[str, Any]:
+        index = self.namespace_index
+        return {
+            "endpoint": f"opc.tcp://{self.host}:{self.port}",
+            "namespace": index,
+            "tags": {tag.name: f"ns={index};s={tag.name}" for tag in self.tags.all()},
+        }
 
     async def publish(self) -> None:
         from asyncua import ua
