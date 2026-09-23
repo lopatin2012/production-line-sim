@@ -15,6 +15,24 @@ def _request(method: str, url: str, body: dict | None = None):
         return json.loads(response.read())
 
 
+def test_web_ui_served():
+    printer = PrinterState(name="sim", port=0)
+    simulator = Simulator([printer])
+    httpd = start_control(simulator, "127.0.0.1", 0)
+    port = httpd.server_address[1]
+    threading.Thread(target=httpd.serve_forever, daemon=True).start()
+    try:
+        with urllib.request.urlopen(f"http://127.0.0.1:{port}/", timeout=5) as response:
+            body = response.read().decode("utf-8")
+            assert response.status == 200
+            assert "<!DOCTYPE html>" in body
+            assert "Production Line Simulator" in body
+        assert _request("GET", f"http://127.0.0.1:{port}/health")["ok"] is True
+    finally:
+        httpd.shutdown()
+        httpd.server_close()
+
+
 def test_control_api():
     printer = PrinterState(name="sim", port=0)
     simulator = Simulator([printer])

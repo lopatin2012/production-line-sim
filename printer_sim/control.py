@@ -2,12 +2,21 @@ from __future__ import annotations
 
 import json
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from pathlib import Path
 from typing import Any
 from urllib.parse import unquote, urlparse
 
 from .state import Simulator
 
 CONTROL_ACTIONS = ("faults", "reset", "print", "config")
+WEBUI_PATH = Path(__file__).resolve().parent / "webui.html"
+
+
+def _webui() -> bytes:
+    try:
+        return WEBUI_PATH.read_bytes()
+    except OSError:
+        return b"<h1>production-line-sim</h1><p>Web UI is not bundled.</p>"
 
 
 def make_handler(simulator: Simulator):
@@ -21,6 +30,13 @@ def make_handler(simulator: Simulator):
             body = json.dumps(payload).encode("utf-8")
             self.send_response(status)
             self.send_header("Content-Type", "application/json; charset=utf-8")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+        def _send_html(self, body: bytes) -> None:
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
             self.send_header("Content-Length", str(len(body)))
             self.end_headers()
             self.wfile.write(body)
@@ -41,7 +57,10 @@ def make_handler(simulator: Simulator):
 
         def do_GET(self) -> None:
             parts = self._parts()
-            if parts in ([], ["health"]):
+            if parts in ([], ["ui"]):
+                self._send_html(_webui())
+                return
+            if parts == ["health"]:
                 self._send(200, {"ok": True, "printers": simulator.names()})
                 return
             if parts == ["state"]:

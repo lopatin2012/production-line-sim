@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Production Line Simulator</title>
+<style>
+:root{--bg:#0d1117;--panel:#161b22;--panel2:#1c2430;--line:#2a3444;--text:#e6edf3;
+  --muted:#9aa7b8;--brand:#2f81f7;--ok:#3fb950;--warn:#d29922;--err:#f85149}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
+  background:var(--bg);color:var(--text);line-height:1.5;-webkit-font-smoothing:antialiased}
+header{display:flex;align-items:center;justify-content:space-between;gap:16px;
+  padding:14px 24px;background:var(--panel);border-bottom:1px solid var(--line);
+  position:sticky;top:0;z-index:5}
+.brand{font-weight:800;font-size:18px}
+.brand b{color:var(--brand)}
+.stats{color:var(--muted);font-size:14px}
+main{padding:22px 24px 60px;max-width:1200px;margin:0 auto}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px;
+  display:flex;flex-direction:column;gap:12px}
+.head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+.pname{font-weight:700;font-size:16px}
+.meta{color:var(--muted);font-size:13px}
+.port{color:var(--muted);font-size:12px}
+.flags{display:flex;flex-wrap:wrap;gap:6px}
+.chip{font:inherit;font-size:12px;padding:3px 10px;border-radius:999px;cursor:pointer;
+  background:var(--panel2);color:var(--muted);border:1px solid transparent}
+.chip:hover{border-color:var(--line)}
+.chip.on{color:var(--text)}
+.chip.on.bad{background:rgba(248,81,73,.16);color:var(--err)}
+.chip.on.warn{background:rgba(210,153,34,.16);color:var(--warn)}
+.counters{color:var(--muted);font-size:13px}
+.counters b{color:var(--text)}
+.actions{display:flex;gap:8px;align-items:center;margin-top:auto}
+.actions input{width:80px;background:#0b1119;border:1px solid var(--line);color:var(--text);
+  border-radius:8px;padding:7px 10px;font-size:14px}
+button{font:inherit;font-size:14px;font-weight:600;cursor:pointer;border:0;border-radius:9px;
+  padding:8px 14px;background:var(--brand);color:#fff}
+button:hover{background:#1f6feb}
+button.ghost{background:transparent;border:1px solid var(--line);color:var(--text)}
+button.ghost:hover{background:var(--panel2)}
+.empty{color:var(--muted)}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">Line<b>Sim</b></div>
+  <div class="stats" id="stats">загрузка…</div>
+</header>
+<main><div id="cards" class="grid"></div></main>
+<script>
+const FAULTS = [
+  ["paper_out", "Нет бумаги", "bad"],
+  ["ribbon_out", "Нет риббона", "bad"],
+  ["head_up", "Головка поднята", "bad"],
+  ["paused", "Пауза", "warn"],
+  ["buffer_full", "Буфер полон", "warn"],
+  ["cutter_fault", "Неисправность ножа", "bad"],
+  ["bad_head_elements", "Износ головки", "bad"],
+  ["head_over_temperature", "Перегрев головки", "bad"],
+  ["motor_over_temperature", "Перегрев двигателя", "bad"],
+  ["head_detection_error", "Ошибка определения головки", "bad"],
+  ["clean_printhead", "Требуется чистка", "warn"],
+];
+let built = false;
+
+function api(path, method, body) {
+  return fetch(path, {
+    method: method || "GET",
+    headers: {"Content-Type": "application/json"},
+    body: body ? JSON.stringify(body) : null,
+  }).then((r) => r.json());
+}
+
+function build(state) {
+  const cards = document.getElementById("cards");
+  cards.innerHTML = "";
+  for (const name of Object.keys(state)) {
+    const card = document.createElement("div");
+    card.className = "card";
+    card.id = "card-" + name;
+    card.innerHTML = `
+      <div class="head">
+        <div>
+          <div class="pname"></div>
+          <div class="meta"><span data-f="model"></span> · <span data-f="firmware"></span></div>
+        </div>
+        <div class="port">порт <span data-f="port"></span></div>
+      </div>
+      <div class="flags"></div>
+      <div class="counters">
+        Напечатано: <b data-f="total_labels"></b> · <span data-f="total_print_length_mm"></span> мм ·
+        В очереди: <span data-f="labels_remaining"></span>
+      </div>
+      <div class="actions">
+        <input type="number" min="1" value="1" data-print>
+        <button data-act="print">Напечатать</button>
+        <button class="ghost" data-act="reset">Сброс</button>
+      </div>`;
+    card.querySelector(".pname").textContent = name;
+
+    const flags = card.querySelector(".flags");
+    for (const [key, label, level] of FAULTS) {
+      const chip = document.createElement("button");
+      chip.className = "chip";
+      chip.dataset.fault = key;
+      chip.dataset.level = level;
+      chip.textContent = label;
+      chip.addEventListener("click", async () => {
+        const current = await api("/state");
+        const on = !(current[name] && current[name][key]);
+        await api("/printers/" + name + "/faults", "POST", {[key]: on});
+        refresh();
+      });
+      flags.appendChild(chip);
+    }
+    card.querySelector('[data-act="print"]').addEventListener("click", async () => {
+      const input = card.querySelector("[data-print]");
+      const quantity = Math.max(parseInt(input.value || "1", 10), 1);
+      await api("/printers/" + name + "/print", "POST", {quantity: quantity});
+      refresh();
+    });
+    card.querySelector('[data-act="reset"]').addEventListener("click", async () => {
+      await api("/printers/" + name + "/reset", "POST", {});
+      refresh();
+    });
+    cards.appendChild(card);
+  }
+  built = true;
+}
+
+function paint(state) {
+  for (const [name, p] of Object.entries(state)) {
+    const card = document.getElementById("card-" + name);
+    if (!card) continue;
+    card.querySelector('[data-f="model"]').textContent = p.model;
+    card.querySelector('[data-f="firmware"]').textContent = p.firmware;
+    card.querySelector('[data-f="port"]').textContent = p.port;
+    card.querySelector('[data-f="total_labels"]').textContent = p.total_labels;
+    card.querySelector('[data-f="total_print_length_mm"]').textContent = p.total_print_length_mm;
+    card.querySelector('[data-f="labels_remaining"]').textContent = p.labels_remaining;
+    card.querySelectorAll("[data-fault]").forEach((chip) => {
+      const on = !!p[chip.dataset.fault];
+      chip.classList.toggle("on", on);
+      chip.classList.toggle("bad", on && chip.dataset.level === "bad");
+      chip.classList.toggle("warn", on && chip.dataset.level === "warn");
+    });
+  }
+  const names = Object.keys(state);
+  const total = names.reduce((sum, n) => sum + state[n].total_labels, 0);
+  document.getElementById("stats").textContent =
+    "Принтеров: " + names.length + " · Напечатано всего: " + total;
+}
+
+async function refresh() {
+  const state = await api("/state");
+  if (!built) build(state);
+  paint(state);
+}
+
+refresh();
+setInterval(refresh, 2000);
+</script>
+</body>
+</html>
