@@ -9,7 +9,7 @@ from .tags import BOOL, INT, REAL, STR, TagRegistry
 
 
 class S7Server:
-    name = "s7"
+    protocol = "s7"
 
     def __init__(
         self,

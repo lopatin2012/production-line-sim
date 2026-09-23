@@ -23,7 +23,7 @@ ILLEGAL_VALUE = 0x03
 
 
 class ModbusServer:
-    name = "modbus"
+    protocol = "modbus"
 
     def __init__(
         self,

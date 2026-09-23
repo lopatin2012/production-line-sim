@@ -104,7 +104,7 @@ def make_handler(
                 self._send(
                     200,
                     {
-                        adapter.name: adapter.describe()
+                        adapter.protocol: adapter.describe()
                         for adapter in adapters
                         if hasattr(adapter, "describe")
                     },

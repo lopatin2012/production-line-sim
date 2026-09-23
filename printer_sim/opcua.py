@@ -19,7 +19,7 @@ def _variant_type(tag: Tag) -> Any:
 
 
 class OpcUaServer:
-    name = "opcua"
+    protocol = "opcua"
 
     def __init__(
         self,
