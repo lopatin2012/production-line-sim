@@ -1,0 +1,30 @@
+{
+  "printers": [
+    {
+      "name": "line-milk-1",
+      "port": 9100,
+      "model": "ZEBRA ZD421-203dpi ZPL",
+      "firmware": "V83.20.07Z",
+      "dots_per_mm": 8,
+      "memory_kb": 4096,
+      "print_mode": "2"
+    },
+    {
+      "name": "line-milk-2",
+      "port": 9101,
+      "model": "ZEBRA ZT411-300dpi ZPL",
+      "firmware": "V83.20.07Z",
+      "dots_per_mm": 12,
+      "memory_kb": 8192,
+      "print_mode": "3"
+    },
+    {
+      "name": "line-dairy-tsc",
+      "port": 9102,
+      "model": "TSC TE200",
+      "firmware": "V7.00",
+      "dots_per_mm": 8,
+      "memory_kb": 2048
+    }
+  ]
+}
