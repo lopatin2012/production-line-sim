@@ -31,5 +31,6 @@ def test_snapshot_contains_metadata():
     registry.add("product", STR, "ro", label="Продукт", initial="Молоко")
     snapshot = registry.snapshot()
     assert snapshot["product"]["value"] == "Молоко"
-    assert snapshot["product"]["table"] == "holding"
+    assert snapshot["product"]["table"] == "input"
+    assert snapshot["product"]["size"] == 16
     assert snapshot["product"]["access"] == "ro"

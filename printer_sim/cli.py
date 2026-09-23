@@ -9,6 +9,7 @@ from pathlib import Path
 
 from .control import start_control
 from .line import LineEngine
+from .modbus import ModbusServer
 from .server import PrinterServer
 from .state import PrinterState, Simulator
 
@@ -53,11 +54,24 @@ async def run(args: argparse.Namespace) -> None:
     httpd = start_control(simulator, args.control_host, args.control_port, line=line)
     threading.Thread(target=httpd.serve_forever, daemon=True).start()
     logger.info("control API + HMI on http://%s:%s", args.control_host, args.control_port)
+    modbus = None
+    if args.modbus:
+        modbus = ModbusServer(line.tags, args.modbus_host, args.modbus_port, args.modbus_unit)
+        try:
+            modbus.start()
+            logger.info(
+                "Modbus TCP on %s:%s (unit %s)", args.modbus_host, modbus.port, args.modbus_unit
+            )
+        except OSError as exc:
+            logger.warning("Modbus TCP не запущен: %s", exc)
+            modbus = None
     ticker = asyncio.create_task(_tick_loop(line))
     try:
         await asyncio.gather(*(server.serve_forever() for server in servers))
     finally:
         ticker.cancel()
+        if modbus is not None:
+            modbus.stop()
         httpd.shutdown()
         for server in servers:
             await server.stop()
@@ -81,6 +95,15 @@ def build_parser() -> argparse.ArgumentParser:
         default=True,
         help="запускать линию сразу при старте",
     )
+    parser.add_argument(
+        "--modbus",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="поднимать Modbus TCP сервер",
+    )
+    parser.add_argument("--modbus-host", default="127.0.0.1")
+    parser.add_argument("--modbus-port", type=int, default=5020)
+    parser.add_argument("--modbus-unit", type=int, default=1)
     parser.add_argument("--log-level", default="info")
     return parser
 

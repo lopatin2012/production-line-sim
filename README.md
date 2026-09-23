@@ -82,10 +82,38 @@ curl -X POST http://127.0.0.1:9200/printers/sim-1/faults \
   -H "Content-Type: application/json" -d '{"paper_out": true}'
 ```
 
+## Modbus TCP
+
+Шлюз отдаёт теги по стандартным таблицам (unit id 1, порт по умолчанию `502`
+в образе, `5020` при локальном запуске):
+
+| Теги | Таблица | Адреса |
+| --- | --- | --- |
+| bool `rw` (команды: `line.start`, `line.jam`, `line.changeover`, …) | coils | 00001+ |
+| bool `ro` (`line.running`, `line.jam_state`, `.active`, `printer.*.fault`) | discrete inputs | 10001+ |
+| int/real/str `rw` (`line.speed`, …) | holding registers | 40001+ |
+| int/real/str `ro` (`line.produced`, `line.product`, …) | input registers | 30001+ |
+
+`real` занимает 2 регистра (IEEE-754, big-endian), `str` — блок 16 регистров
+(UTF-8). Команды пишутся в coils/registers и применяются движком на следующем тике.
+
+Пример на Python (`pip install pymodbus`):
+
+```python
+from pymodbus.client import ModbusTcpClient
+
+client = ModbusTcpClient("127.0.0.1", port=502)
+client.connect()
+client.write_coil(0, True)                 # line.start
+print(client.read_discrete_inputs(0, 1))   # line.running
+print(client.read_input_registers(0, 1))   # line.produced
+client.close()
+```
+
 ## Roadmap АСУТП
 
 - [x] Модель линии, движок, теги, события, HMI.
-- [ ] **Modbus TCP** — шлюз «теги ↔ coils/registers», подключение ПЛК/OpenPLC.
+- [x] **Modbus TCP** — шлюз «теги ↔ coils/registers», подключение ПЛК/OpenPLC.
 - [ ] **Soft-PLC** — встроенный движок логики (правила/ST-подобное) поверх тегов.
 - [ ] **OPC UA** (`asyncua`), **EtherNet/IP** (`pycomm3`/`cpppo`), **S7** (`snap7`).
 - [ ] Смена продукта как событие для внешних программ (реакция ПЛК/SCADA).
