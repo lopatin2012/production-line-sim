@@ -133,12 +133,39 @@ curl -X DELETE http://127.0.0.1:9200/plc/rules/jam
 В HMI есть панель Soft-PLC: включение, редактирование правил (JSON), кнопка
 «Пример», счётчики срабатываний.
 
+## OPC UA
+
+Сервер OPC UA (`asyncua`, extra `opcua`): `opc.tcp://<host>:4840`, пространство имён
+`ProductionLine`, объект `Line`, по переменной на тег (`ns=2;s=<tag>`, например
+`ns=2;s=line.running`). Теги `rw` доступны на запись.
+
+```bash
+pip install ".[opcua]"
+python -m printer_sim --opcua --opcua-port 4840
+```
+
+## S7 (Siemens)
+
+Сервер S7 (`python-snap7`, extra `s7`): область **DB1**, теги раскладываются по
+байтовым смещениям (bool — 1 байт, int — 2 big-endian, real — 4 IEEE-754, str —
+блок). Подходит для PUT/GET и S7-клиентов. Порт по умолчанию `102` в образе,
+`10102` локально.
+
+```bash
+pip install ".[s7]"
+python -m printer_sim --s7 --s7-port 10102
+```
+
 ## Roadmap АСУТП
 
 - [x] Модель линии, движок, теги, события, HMI.
 - [x] **Modbus TCP** — шлюз «теги ↔ coils/registers», подключение ПЛК/OpenPLC.
 - [x] **Soft-PLC** — встроенный движок логики (правила) поверх тегов.
-- [ ] **OPC UA** (`asyncua`), **EtherNet/IP** (`pycomm3`/`cpppo`), **S7** (`snap7`).
+- [x] **OPC UA** (`asyncua`).
+- [x] **S7** (`python-snap7`).
+- [ ] **EtherNet/IP** (`cpppo`): ENIP-сервер запускается CLI cpppo; программной
+      привязки к тегам в библиотеке нет — нужен отдельный мост (`idle_service`),
+      прорабатывается. Extra `enip` уже объявлен.
 - [ ] Смена продукта как событие для внешних программ (реакция ПЛК/SCADA).
 
 ## Образ

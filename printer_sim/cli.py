@@ -18,11 +18,31 @@ logger = logging.getLogger("printer_sim")
 TICK_SECONDS = 0.1
 
 
-async def _tick_loop(line: LineEngine, plc: SoftPlc, dt: float = TICK_SECONDS) -> None:
+async def _sync_adapter(adapter) -> None:
+    import inspect
+
+    for method_name in ("poll", "publish"):
+        method = getattr(adapter, method_name, None)
+        if method is None:
+            continue
+        result = method()
+        if inspect.isawaitable(result):
+            await result
+
+
+async def _tick_loop(
+    line: LineEngine, plc: SoftPlc, adapters=None, dt: float = TICK_SECONDS
+) -> None:
+    adapters = [adapter for adapter in (adapters or []) if adapter is not None]
     while True:
         await asyncio.sleep(dt)
         plc.tick(dt)
         line.tick(dt)
+        for adapter in adapters:
+            try:
+                await _sync_adapter(adapter)
+            except Exception:
+                pass
 
 
 def load_printers(args: argparse.Namespace) -> list[PrinterState]:
@@ -70,11 +90,58 @@ async def run(args: argparse.Namespace) -> None:
         except OSError as exc:
             logger.warning("Modbus TCP не запущен: %s", exc)
             modbus = None
-    ticker = asyncio.create_task(_tick_loop(line, plc))
+    adapters: list = []
+    opcua = None
+    if args.opcua:
+        try:
+            from .opcua import OpcUaServer
+
+            opcua = OpcUaServer(line.tags, args.opcua_host, args.opcua_port)
+            await opcua.start()
+            adapters.append(opcua)
+            logger.info(
+                "OPC UA on opc.tcp://%s:%s (ns=%s, node ns=%s;s=<tag>)",
+                args.opcua_host,
+                args.opcua_port,
+                opcua.namespace_index,
+                opcua.namespace_index,
+            )
+        except ImportError:
+            logger.warning("OPC UA: не установлен asyncua (pip install '.[opcua]')")
+            opcua = None
+        except Exception as exc:
+            logger.warning("OPC UA не запущен: %s", exc)
+            opcua = None
+    s7 = None
+    if args.s7:
+        try:
+            from .s7 import S7Server
+
+            s7 = S7Server(line.tags, args.s7_host, args.s7_port, args.s7_db)
+            s7.start()
+            adapters.append(s7)
+            logger.info(
+                "S7 on %s:%s (DB%s, %s bytes)",
+                args.s7_host,
+                s7.port,
+                s7.db_number,
+                s7.size,
+            )
+        except ImportError:
+            logger.warning("S7: не установлен python-snap7 (pip install '.[s7]')")
+            s7 = None
+        except Exception as exc:
+            logger.warning("S7 не запущен: %s", exc)
+            s7 = None
+    ticker = asyncio.create_task(_tick_loop(line, plc, adapters))
     try:
         await asyncio.gather(*(server.serve_forever() for server in servers))
     finally:
         ticker.cancel()
+        if opcua is not None:
+            await opcua.stop()
+        if s7 is not None:
+            s7.stop()
         if modbus is not None:
             modbus.stop()
         httpd.shutdown()
@@ -116,6 +183,23 @@ def build_parser() -> argparse.ArgumentParser:
         help="включить встроенный soft-PLC",
     )
     parser.add_argument("--plc-file", default=None, help="JSON-файл с правилами soft-PLC")
+    parser.add_argument(
+        "--opcua",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="поднимать OPC UA сервер (нужен asyncua)",
+    )
+    parser.add_argument("--opcua-host", default="127.0.0.1")
+    parser.add_argument("--opcua-port", type=int, default=4840)
+    parser.add_argument(
+        "--s7",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="поднимать S7 сервер (нужен python-snap7)",
+    )
+    parser.add_argument("--s7-host", default="0.0.0.0")
+    parser.add_argument("--s7-port", type=int, default=10102)
+    parser.add_argument("--s7-db", type=int, default=1)
     parser.add_argument("--log-level", default="info")
     return parser
 

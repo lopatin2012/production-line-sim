@@ -23,7 +23,9 @@ jobs:
           python-version: "3.12"
 
       - name: Install dependencies
-        run: pip install ruff pytest pytest-asyncio
+        run: |
+          pip install ruff pytest pytest-asyncio
+          pip install ".[opcua,s7]"
 
       - name: Lint
         run: ruff check .
