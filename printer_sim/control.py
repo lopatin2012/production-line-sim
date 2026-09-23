@@ -4,8 +4,9 @@ import json
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
-from urllib.parse import unquote, urlparse
+from urllib.parse import parse_qs, unquote, urlparse
 
+from .line import LineEngine
 from .state import Simulator
 
 CONTROL_ACTIONS = ("faults", "reset", "print", "config")
@@ -19,9 +20,9 @@ def _webui() -> bytes:
         return b"<h1>production-line-sim</h1><p>Web UI is not bundled.</p>"
 
 
-def make_handler(simulator: Simulator):
+def make_handler(simulator: Simulator, line: LineEngine | None = None):
     class ControlHandler(BaseHTTPRequestHandler):
-        server_version = "printer-sim"
+        server_version = "production-line-sim"
 
         def log_message(self, *args: Any) -> None:
             pass
@@ -43,6 +44,10 @@ def make_handler(simulator: Simulator):
 
         def _parts(self) -> list[str]:
             return [unquote(part) for part in urlparse(self.path).path.split("/") if part]
+
+        def _query(self) -> dict[str, str]:
+            values = parse_qs(urlparse(self.path).query)
+            return {key: items[0] for key, items in values.items() if items}
 
         def _body(self) -> dict[str, Any]:
             length = int(self.headers.get("Content-Length") or 0)
@@ -69,6 +74,22 @@ def make_handler(simulator: Simulator):
             if parts == ["printers"]:
                 self._send(200, simulator.names())
                 return
+            if parts == ["tags"] and line is not None:
+                self._send(200, line.tags.snapshot())
+                return
+            if parts == ["events"] and line is not None:
+                query = self._query()
+                self._send(
+                    200,
+                    line.events_recent(
+                        limit=int(query.get("limit", "50")),
+                        after=int(query.get("after", "0")),
+                    ),
+                )
+                return
+            if parts == ["line", "state"] and line is not None:
+                self._send(200, line.state())
+                return
             if len(parts) == 2 and parts[0] == "printers":
                 printer = simulator.get(parts[1])
                 if printer is None:
@@ -81,6 +102,20 @@ def make_handler(simulator: Simulator):
 
         def do_POST(self) -> None:
             parts = self._parts()
+            body = self._body()
+            if parts == ["line", "control"] and line is not None:
+                result = line.control(str(body.get("action", "")), body)
+                result["state"] = line.state()
+                self._send(200 if result.get("ok") else 400, result)
+                return
+            if parts == ["tags"] and line is not None:
+                name = str(body.get("name", ""))
+                if line.tags.tag(name) is None:
+                    self._send(404, {"error": "unknown tag"})
+                    return
+                line.tags.set(name, body.get("value"), force=True)
+                self._send(200, line.tags.tag(name).to_dict())
+                return
             if len(parts) != 3 or parts[0] != "printers" or parts[2] not in CONTROL_ACTIONS:
                 self._send(404, {"error": "not found"})
                 return
@@ -88,14 +123,11 @@ def make_handler(simulator: Simulator):
             if printer is None:
                 self._send(404, {"error": "unknown printer"})
                 return
-            body = self._body()
             action = parts[2]
             with simulator.lock:
                 if action == "reset":
                     printer.reset()
-                elif action == "faults":
-                    printer.apply(body)
-                elif action == "config":
+                elif action in ("faults", "config"):
                     printer.apply(body)
                 elif action == "print":
                     printer.print_labels(int(body.get("quantity", 1)))
@@ -104,6 +136,11 @@ def make_handler(simulator: Simulator):
     return ControlHandler
 
 
-def start_control(simulator: Simulator, host: str, port: int) -> ThreadingHTTPServer:
-    httpd = ThreadingHTTPServer((host, port), make_handler(simulator))
+def start_control(
+    simulator: Simulator,
+    host: str,
+    port: int,
+    line: LineEngine | None = None,
+) -> ThreadingHTTPServer:
+    httpd = ThreadingHTTPServer((host, port), make_handler(simulator, line))
     return httpd

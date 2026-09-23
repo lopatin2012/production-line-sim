@@ -10,20 +10,42 @@
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
   background:var(--bg);color:var(--text);line-height:1.5;-webkit-font-smoothing:antialiased}
-header{display:flex;align-items:center;justify-content:space-between;gap:16px;
-  padding:14px 24px;background:var(--panel);border-bottom:1px solid var(--line);
-  position:sticky;top:0;z-index:5}
-.brand{font-weight:800;font-size:18px}
-.brand b{color:var(--brand)}
-.stats{color:var(--muted);font-size:14px}
-main{padding:22px 24px 60px;max-width:1200px;margin:0 auto}
-.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px}
-.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px;
-  display:flex;flex-direction:column;gap:12px}
-.head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
-.pname{font-weight:700;font-size:16px}
-.meta{color:var(--muted);font-size:13px}
-.port{color:var(--muted);font-size:12px}
+header{display:flex;align-items:center;gap:18px;flex-wrap:wrap;padding:12px 22px;
+  background:var(--panel);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:5}
+.brand{font-weight:800;font-size:18px}.brand b{color:var(--brand)}
+.ctl{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.pill{padding:3px 10px;border-radius:999px;font-size:12px;font-weight:600;background:var(--panel2);color:var(--muted)}
+.pill.ok{background:rgba(63,185,80,.15);color:var(--ok)}
+.pill.err{background:rgba(248,81,73,.15);color:var(--err)}
+button{font:inherit;font-size:13px;font-weight:600;cursor:pointer;border:0;border-radius:8px;
+  padding:7px 12px;background:var(--brand);color:#fff}
+button:hover{background:#1f6feb}
+button.ghost{background:transparent;border:1px solid var(--line);color:var(--text)}
+button.ghost:hover{background:var(--panel2)}
+input,select{background:#0b1119;border:1px solid var(--line);color:var(--text);border-radius:8px;
+  padding:6px 9px;font:inherit;font-size:13px}
+main{padding:18px 22px 60px;max-width:1300px;margin:0 auto}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:16px}
+.stats{display:flex;gap:22px;flex-wrap:wrap;color:var(--muted);font-size:14px;margin-bottom:6px}
+.stats b{color:var(--text);font-size:16px}
+.track{position:relative;height:150px;margin:26px 0 6px}
+.belt{position:absolute;left:0;right:0;top:86px;height:16px;border-radius:8px;
+  background:repeating-linear-gradient(90deg,#202b3a 0 14px,#18202b 14px 28px);
+  border:1px solid var(--line)}
+.station{position:absolute;top:0;transform:translateX(-50%);text-align:center;width:120px}
+.station .box{width:26px;height:26px;border-radius:7px;margin:52px auto 0;background:var(--panel2);
+  border:2px solid var(--line);transition:all .15s}
+.station.ok .box{border-color:var(--ok)}
+.station.active .box{border-color:var(--brand);background:rgba(47,129,247,.25);box-shadow:0 0 12px rgba(47,129,247,.6)}
+.station.fault .box{border-color:var(--err);background:rgba(248,81,73,.25);box-shadow:0 0 12px rgba(248,81,73,.6)}
+.station.warn .box{border-color:var(--warn);background:rgba(210,153,34,.25)}
+.station .slabel{font-size:11px;color:var(--muted);margin-top:6px;line-height:1.2}
+.item{position:absolute;top:64px;width:16px;height:16px;border-radius:50%;transform:translateX(-50%);
+  border:2px solid rgba(255,255,255,.65);z-index:2;transition:left .1s linear}
+.item.rejected{border-color:var(--err);box-shadow:0 0 8px rgba(248,81,73,.8)}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media(max-width:820px){.grid{grid-template-columns:1fr}}
+h2{font-size:15px;color:var(--muted);font-weight:600;margin-bottom:10px}
 .flags{display:flex;flex-wrap:wrap;gap:6px}
 .chip{font:inherit;font-size:12px;padding:3px 10px;border-radius:999px;cursor:pointer;
   background:var(--panel2);color:var(--muted);border:1px solid transparent}
@@ -31,25 +53,66 @@ main{padding:22px 24px 60px;max-width:1200px;margin:0 auto}
 .chip.on{color:var(--text)}
 .chip.on.bad{background:rgba(248,81,73,.16);color:var(--err)}
 .chip.on.warn{background:rgba(210,153,34,.16);color:var(--warn)}
-.counters{color:var(--muted);font-size:13px}
-.counters b{color:var(--text)}
-.actions{display:flex;gap:8px;align-items:center;margin-top:auto}
-.actions input{width:80px;background:#0b1119;border:1px solid var(--line);color:var(--text);
-  border-radius:8px;padding:7px 10px;font-size:14px}
-button{font:inherit;font-size:14px;font-weight:600;cursor:pointer;border:0;border-radius:9px;
-  padding:8px 14px;background:var(--brand);color:#fff}
-button:hover{background:#1f6feb}
-button.ghost{background:transparent;border:1px solid var(--line);color:var(--text)}
-button.ghost:hover{background:var(--panel2)}
-.empty{color:var(--muted)}
+.printers{display:grid;gap:10px}
+.prow{display:flex;align-items:center;gap:10px;flex-wrap:wrap;border-top:1px solid var(--line);padding-top:10px}
+.prow:first-child{border-top:0;padding-top:0}
+.pname{font-weight:600;min-width:120px}
+.events{max-height:320px;overflow:auto;font-size:13px}
+.ev{display:flex;gap:10px;padding:4px 0;border-bottom:1px solid var(--line)}
+.ev .t{color:var(--muted);min-width:62px;font-variant-numeric:tabular-nums}
+.ev.print{color:#9ecbff}.ev.verify_ok{color:var(--ok)}.ev.verify_fail,.ev.reject,.ev.print_error{color:var(--err)}
+.ev.changeover{color:var(--warn)}.ev.jam{color:var(--err)}.ev.start,.ev.stop{color:var(--brand)}
+table{width:100%;border-collapse:collapse;font-size:12px}
+th,td{text-align:left;padding:4px 8px;border-bottom:1px solid var(--line)}
+th{color:var(--muted)}
+details summary{cursor:pointer;color:var(--muted);font-size:14px}
 </style>
 </head>
 <body>
 <header>
   <div class="brand">Line<b>Sim</b></div>
-  <div class="stats" id="stats">загрузка…</div>
+  <div class="ctl">
+    <span class="pill" id="run-state">—</span>
+    <button id="btn-start">Пуск</button>
+    <button class="ghost" id="btn-stop">Стоп</button>
+    <button class="ghost" id="btn-jam">Замятие</button>
+    <button class="ghost" id="btn-clear">Сброс аварий</button>
+    <select id="product"></select>
+    <button class="ghost" id="btn-changeover">Сменить продукт</button>
+    <span class="pill">скорость <input type="number" id="speed" step="0.02" min="0.02" style="width:70px;padding:2px 6px"></span>
+  </div>
 </header>
-<main><div id="cards" class="grid"></div></main>
+<main>
+  <div class="panel">
+    <div class="stats">
+      <span>Продукт: <b id="s-product">—</b></span>
+      <span>Выпущено: <b id="s-produced">0</b></span>
+      <span>Прошло: <b id="s-passed">0</b></span>
+      <span>Брак: <b id="s-rejected">0</b></span>
+      <span>Напечатано: <b id="s-printed">0</b></span>
+      <span>На линии: <b id="s-online-items">0</b></span>
+    </div>
+    <div class="track" id="track"><div class="belt"></div></div>
+  </div>
+
+  <div class="grid">
+    <div class="panel">
+      <h2>Принтеры</h2>
+      <div class="printers" id="printers"></div>
+    </div>
+    <div class="panel">
+      <h2>События</h2>
+      <div class="events" id="events"></div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <details>
+      <summary>Теги АСУТП (карта адресов)</summary>
+      <div style="margin-top:10px"><table id="tags"></table></div>
+    </details>
+  </div>
+</main>
 <script>
 const FAULTS = [
   ["paper_out", "Нет бумаги", "bad"],
@@ -57,14 +120,14 @@ const FAULTS = [
   ["head_up", "Головка поднята", "bad"],
   ["paused", "Пауза", "warn"],
   ["buffer_full", "Буфер полон", "warn"],
-  ["cutter_fault", "Неисправность ножа", "bad"],
+  ["cutter_fault", "Нож", "bad"],
   ["bad_head_elements", "Износ головки", "bad"],
   ["head_over_temperature", "Перегрев головки", "bad"],
   ["motor_over_temperature", "Перегрев двигателя", "bad"],
-  ["head_detection_error", "Ошибка определения головки", "bad"],
-  ["clean_printhead", "Требуется чистка", "warn"],
+  ["clean_printhead", "Чистка", "warn"],
 ];
-let built = false;
+let printersBuilt = false;
+let lastEventSeq = 0;
 
 function api(path, method, body) {
   return fetch(path, {
@@ -74,94 +137,150 @@ function api(path, method, body) {
   }).then((r) => r.json());
 }
 
-function build(state) {
-  const cards = document.getElementById("cards");
-  cards.innerHTML = "";
-  for (const name of Object.keys(state)) {
-    const card = document.createElement("div");
-    card.className = "card";
-    card.id = "card-" + name;
-    card.innerHTML = `
-      <div class="head">
-        <div>
-          <div class="pname"></div>
-          <div class="meta"><span data-f="model"></span> · <span data-f="firmware"></span></div>
-        </div>
-        <div class="port">порт <span data-f="port"></span></div>
-      </div>
-      <div class="flags"></div>
-      <div class="counters">
-        Напечатано: <b data-f="total_labels"></b> · <span data-f="total_print_length_mm"></span> мм ·
-        В очереди: <span data-f="labels_remaining"></span>
-      </div>
-      <div class="actions">
-        <input type="number" min="1" value="1" data-print>
-        <button data-act="print">Напечатать</button>
-        <button class="ghost" data-act="reset">Сброс</button>
-      </div>`;
-    card.querySelector(".pname").textContent = name;
+function renderLine(s) {
+  document.getElementById("run-state").textContent = s.running ? "работает" : "остановлена";
+  document.getElementById("run-state").className = "pill " + (s.running ? "ok" : "err");
+  document.getElementById("s-product").textContent = s.product;
+  document.getElementById("s-produced").textContent = s.counters.produced;
+  document.getElementById("s-passed").textContent = s.counters.passed;
+  document.getElementById("s-rejected").textContent = s.counters.rejected;
+  document.getElementById("s-printed").textContent = s.counters.printed;
+  document.getElementById("s-online-items").textContent = s.items.length;
+  const track = document.getElementById("track");
+  track.querySelectorAll(".station,.item").forEach((el) => el.remove());
+  for (const st of s.stations) {
+    const el = document.createElement("div");
+    el.className = "station " + st.status;
+    el.style.left = (st.pos * 100) + "%";
+    el.innerHTML = '<div class="box"></div><div class="slabel"></div>';
+    el.querySelector(".slabel").textContent = st.label;
+    track.appendChild(el);
+  }
+  for (const it of s.items) {
+    const el = document.createElement("div");
+    el.className = "item" + (it.rejected ? " rejected" : "");
+    el.style.left = (it.pos * 100) + "%";
+    el.style.background = it.color;
+    el.title = "#" + it.id + " · " + it.product;
+    track.appendChild(el);
+  }
+}
 
-    const flags = card.querySelector(".flags");
+function buildPrinters(state) {
+  const box = document.getElementById("printers");
+  box.innerHTML = "";
+  for (const name of Object.keys(state)) {
+    const row = document.createElement("div");
+    row.className = "prow";
+    row.id = "p-" + name;
+    row.innerHTML = '<span class="pname"></span><span class="flags"></span>' +
+      '<input type="number" min="1" value="1" data-print style="width:70px">' +
+      '<button data-act="print">Печать</button><button class="ghost" data-act="reset">Сброс</button>';
+    row.querySelector(".pname").textContent = name;
+    const flags = row.querySelector(".flags");
     for (const [key, label, level] of FAULTS) {
       const chip = document.createElement("button");
-      chip.className = "chip";
-      chip.dataset.fault = key;
-      chip.dataset.level = level;
+      chip.className = "chip"; chip.dataset.fault = key; chip.dataset.level = level;
       chip.textContent = label;
       chip.addEventListener("click", async () => {
-        const current = await api("/state");
-        const on = !(current[name] && current[name][key]);
-        await api("/printers/" + name + "/faults", "POST", {[key]: on});
-        refresh();
+        const cur = await api("/state");
+        await api("/printers/" + name + "/faults", "POST", {[key]: !cur[name][key]});
+        refreshPrinters();
       });
       flags.appendChild(chip);
     }
-    card.querySelector('[data-act="print"]').addEventListener("click", async () => {
-      const input = card.querySelector("[data-print]");
-      const quantity = Math.max(parseInt(input.value || "1", 10), 1);
-      await api("/printers/" + name + "/print", "POST", {quantity: quantity});
-      refresh();
+    row.querySelector('[data-act="print"]').addEventListener("click", async () => {
+      const qty = Math.max(parseInt(row.querySelector("[data-print]").value || "1", 10), 1);
+      await api("/printers/" + name + "/print", "POST", {quantity: qty});
+      refreshPrinters();
     });
-    card.querySelector('[data-act="reset"]').addEventListener("click", async () => {
+    row.querySelector('[data-act="reset"]').addEventListener("click", async () => {
       await api("/printers/" + name + "/reset", "POST", {});
-      refresh();
+      refreshPrinters();
     });
-    cards.appendChild(card);
+    box.appendChild(row);
   }
-  built = true;
+  printersBuilt = true;
 }
 
-function paint(state) {
+function paintPrinters(state) {
   for (const [name, p] of Object.entries(state)) {
-    const card = document.getElementById("card-" + name);
-    if (!card) continue;
-    card.querySelector('[data-f="model"]').textContent = p.model;
-    card.querySelector('[data-f="firmware"]').textContent = p.firmware;
-    card.querySelector('[data-f="port"]').textContent = p.port;
-    card.querySelector('[data-f="total_labels"]').textContent = p.total_labels;
-    card.querySelector('[data-f="total_print_length_mm"]').textContent = p.total_print_length_mm;
-    card.querySelector('[data-f="labels_remaining"]').textContent = p.labels_remaining;
-    card.querySelectorAll("[data-fault]").forEach((chip) => {
+    const row = document.getElementById("p-" + name);
+    if (!row) continue;
+    row.querySelectorAll("[data-fault]").forEach((chip) => {
       const on = !!p[chip.dataset.fault];
       chip.classList.toggle("on", on);
       chip.classList.toggle("bad", on && chip.dataset.level === "bad");
       chip.classList.toggle("warn", on && chip.dataset.level === "warn");
     });
   }
-  const names = Object.keys(state);
-  const total = names.reduce((sum, n) => sum + state[n].total_labels, 0);
-  document.getElementById("stats").textContent =
-    "Принтеров: " + names.length + " · Напечатано всего: " + total;
 }
 
-async function refresh() {
+function renderEvents(events) {
+  if (!events.length) return;
+  const box = document.getElementById("events");
+  for (const ev of events) {
+    lastEventSeq = Math.max(lastEventSeq, ev.seq);
+    const el = document.createElement("div");
+    el.className = "ev " + ev.category;
+    const time = new Date(ev.ts * 1000).toLocaleTimeString();
+    el.innerHTML = '<span class="t"></span><span class="m"></span>';
+    el.querySelector(".t").textContent = time;
+    el.querySelector(".m").textContent = ev.message;
+    box.prepend(el);
+  }
+  while (box.children.length > 60) box.removeChild(box.lastChild);
+}
+
+async function renderTags() {
+  const tags = await api("/tags");
+  const table = document.getElementById("tags");
+  const rows = ["<tr><th>Тег</th><th>Адрес</th><th>Доступ</th><th>Значение</th></tr>"];
+  for (const [name, tag] of Object.entries(tags)) {
+    const addr = tag.table + ":" + tag.ref;
+    rows.push("<tr><td>" + name + "</td><td>" + addr + "</td><td>" + tag.access +
+      "</td><td>" + JSON.stringify(tag.value) + "</td></tr>");
+  }
+  table.innerHTML = rows.join("");
+}
+
+async function refreshLine() {
+  const s = await api("/line/state");
+  renderLine(s);
+  const events = await api("/events?after=" + lastEventSeq);
+  renderEvents(events);
+}
+
+async function refreshPrinters() {
   const state = await api("/state");
-  if (!built) build(state);
-  paint(state);
+  if (!printersBuilt) buildPrinters(state);
+  paintPrinters(state);
 }
 
-refresh();
-setInterval(refresh, 2000);
+async function init() {
+  const s = await api("/line/state");
+  document.getElementById("product").innerHTML =
+    s.products.map((p) => '<option value="' + p.name + '">' + p.name + "</option>").join("");
+  document.getElementById("speed").value = s.speed;
+  renderLine(s);
+  renderTags();
+}
+document.getElementById("btn-start").addEventListener("click", () => api("/line/control", "POST", {action: "start"}).then(refreshLine));
+document.getElementById("btn-stop").addEventListener("click", () => api("/line/control", "POST", {action: "stop"}).then(refreshLine));
+document.getElementById("btn-jam").addEventListener("click", () => api("/line/control", "POST", {action: "jam"}).then(refreshLine));
+document.getElementById("btn-clear").addEventListener("click", () => api("/line/control", "POST", {action: "clear"}).then(refreshLine));
+document.getElementById("btn-changeover").addEventListener("click", () => {
+  const product = document.getElementById("product").value;
+  api("/line/control", "POST", {action: "changeover", product: product}).then(refreshLine);
+});
+document.getElementById("speed").addEventListener("change", (e) => {
+  api("/line/control", "POST", {action: "speed", speed: parseFloat(e.target.value)});
+});
+
+init();
+refreshPrinters();
+setInterval(refreshLine, 400);
+setInterval(refreshPrinters, 2500);
 </script>
 </body>
 </html>

@@ -8,10 +8,18 @@ import threading
 from pathlib import Path
 
 from .control import start_control
+from .line import LineEngine
 from .server import PrinterServer
 from .state import PrinterState, Simulator
 
 logger = logging.getLogger("printer_sim")
+TICK_SECONDS = 0.1
+
+
+async def _tick_loop(line: LineEngine, dt: float = TICK_SECONDS) -> None:
+    while True:
+        await asyncio.sleep(dt)
+        line.tick(dt)
 
 
 def load_printers(args: argparse.Namespace) -> list[PrinterState]:
@@ -32,18 +40,24 @@ def load_printers(args: argparse.Namespace) -> list[PrinterState]:
 async def run(args: argparse.Namespace) -> None:
     printers = load_printers(args)
     simulator = Simulator(printers)
+    line = LineEngine(printers)
     servers: list[PrinterServer] = []
     for printer in printers:
         server = PrinterServer(simulator, printer, host=args.host)
         await server.start()
         servers.append(server)
         logger.info("printer %s on %s:%s", printer.name, args.host, server.port)
-    httpd = start_control(simulator, args.control_host, args.control_port)
+    if args.autostart:
+        line.control("start")
+    line.events.publish("boot", "Симулятор линии запущен")
+    httpd = start_control(simulator, args.control_host, args.control_port, line=line)
     threading.Thread(target=httpd.serve_forever, daemon=True).start()
-    logger.info("control API on http://%s:%s", args.control_host, args.control_port)
+    logger.info("control API + HMI on http://%s:%s", args.control_host, args.control_port)
+    ticker = asyncio.create_task(_tick_loop(line))
     try:
         await asyncio.gather(*(server.serve_forever() for server in servers))
     finally:
+        ticker.cancel()
         httpd.shutdown()
         for server in servers:
             await server.stop()
@@ -61,6 +75,12 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--base-port", type=int, default=9100)
     parser.add_argument("--control-host", default="127.0.0.1")
     parser.add_argument("--control-port", type=int, default=9200)
+    parser.add_argument(
+        "--autostart",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="запускать линию сразу при старте",
+    )
     parser.add_argument("--log-level", default="info")
     return parser
 

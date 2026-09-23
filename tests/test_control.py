@@ -3,6 +3,7 @@ import threading
 import urllib.request
 
 from printer_sim.control import start_control
+from printer_sim.line import LineEngine
 from printer_sim.state import PrinterState, Simulator
 
 
@@ -59,6 +60,40 @@ def test_control_api():
             "POST", f"{base}/printers/sim/config", {"model": "ZEBRA ZT411-300dpi ZPL"}
         )
         assert reconfigured["model"] == "ZEBRA ZT411-300dpi ZPL"
+    finally:
+        httpd.shutdown()
+        httpd.server_close()
+
+
+def test_line_api():
+    printer = PrinterState(name="sim", port=0)
+    simulator = Simulator([printer])
+    line = LineEngine([printer])
+    httpd = start_control(simulator, "127.0.0.1", 0, line=line)
+    port = httpd.server_address[1]
+    threading.Thread(target=httpd.serve_forever, daemon=True).start()
+    base = f"http://127.0.0.1:{port}"
+    try:
+        state = _request("GET", f"{base}/line/state")
+        assert "stations" in state and "counters" in state
+        assert any(station["kind"] == "printer" for station in state["stations"])
+
+        _request("POST", f"{base}/line/control", {"action": "start"})
+        line.tick(0.1)
+        assert _request("GET", f"{base}/line/state")["running"] is True
+
+        tags = _request("GET", f"{base}/tags")
+        assert "line.running" in tags and tags["line.running"]["table"] == "discrete"
+
+        _request("POST", f"{base}/tags", {"name": "line.speed", "value": 0.3})
+        assert _request("GET", f"{base}/tags")["line.speed"]["value"] == 0.3
+
+        assert isinstance(_request("GET", f"{base}/events"), list)
+
+        _request(
+            "POST", f"{base}/line/control", {"action": "changeover", "product": "Кефир 0,5 л"}
+        )
+        assert _request("GET", f"{base}/line/state")["product"] == "Кефир 0,5 л"
     finally:
         httpd.shutdown()
         httpd.server_close()
