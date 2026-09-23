@@ -7,6 +7,7 @@ from typing import Any
 from urllib.parse import parse_qs, unquote, urlparse
 
 from .line import LineEngine
+from .softplc import SoftPlc
 from .state import Simulator
 
 CONTROL_ACTIONS = ("faults", "reset", "print", "config")
@@ -20,7 +21,11 @@ def _webui() -> bytes:
         return b"<h1>production-line-sim</h1><p>Web UI is not bundled.</p>"
 
 
-def make_handler(simulator: Simulator, line: LineEngine | None = None):
+def make_handler(
+    simulator: Simulator,
+    line: LineEngine | None = None,
+    plc: SoftPlc | None = None,
+):
     class ControlHandler(BaseHTTPRequestHandler):
         server_version = "production-line-sim"
 
@@ -90,6 +95,9 @@ def make_handler(simulator: Simulator, line: LineEngine | None = None):
             if parts == ["line", "state"] and line is not None:
                 self._send(200, line.state())
                 return
+            if parts == ["plc"] and plc is not None:
+                self._send(200, plc.snapshot())
+                return
             if len(parts) == 2 and parts[0] == "printers":
                 printer = simulator.get(parts[1])
                 if printer is None:
@@ -116,6 +124,17 @@ def make_handler(simulator: Simulator, line: LineEngine | None = None):
                 line.tags.set(name, body.get("value"), force=True)
                 self._send(200, line.tags.tag(name).to_dict())
                 return
+            if parts == ["plc", "rules"] and plc is not None:
+                if "rules" in body:
+                    plc.replace(list(body.get("rules") or []))
+                elif "rule" in body:
+                    plc.upsert(dict(body.get("rule") or {}))
+                self._send(200, plc.snapshot())
+                return
+            if parts == ["plc", "enable"] and plc is not None:
+                plc.set_enabled(bool(body.get("enabled", True)))
+                self._send(200, plc.snapshot())
+                return
             if len(parts) != 3 or parts[0] != "printers" or parts[2] not in CONTROL_ACTIONS:
                 self._send(404, {"error": "not found"})
                 return
@@ -133,6 +152,14 @@ def make_handler(simulator: Simulator, line: LineEngine | None = None):
                     printer.print_labels(int(body.get("quantity", 1)))
                 self._send(200, printer.to_dict())
 
+        def do_DELETE(self) -> None:
+            parts = self._parts()
+            if len(parts) == 3 and parts[:2] == ["plc", "rules"] and plc is not None:
+                removed = plc.remove(parts[2])
+                self._send(200 if removed else 404, {"ok": removed, "state": plc.snapshot()})
+                return
+            self._send(404, {"error": "not found"})
+
     return ControlHandler
 
 
@@ -141,6 +168,7 @@ def start_control(
     host: str,
     port: int,
     line: LineEngine | None = None,
+    plc: SoftPlc | None = None,
 ) -> ThreadingHTTPServer:
-    httpd = ThreadingHTTPServer((host, port), make_handler(simulator, line))
+    httpd = ThreadingHTTPServer((host, port), make_handler(simulator, line, plc))
     return httpd

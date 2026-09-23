@@ -1,0 +1,25 @@
+{
+  "rules": [
+    {
+      "name": "stop_when_full",
+      "enabled": true,
+      "when": [
+        { "tag": "line.accumulator_full", "op": "==", "value": true }
+      ],
+      "then": [
+        { "set": "line.stop", "value": true }
+      ]
+    },
+    {
+      "name": "changeover_every_10",
+      "enabled": true,
+      "edge": true,
+      "when": [
+        { "tag": "line.produced", "op": ">=", "value": 10 }
+      ],
+      "then": [
+        { "control": "changeover" }
+      ]
+    }
+  ]
+}

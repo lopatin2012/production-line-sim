@@ -4,6 +4,7 @@ import urllib.request
 
 from printer_sim.control import start_control
 from printer_sim.line import LineEngine
+from printer_sim.softplc import SoftPlc
 from printer_sim.state import PrinterState, Simulator
 
 
@@ -94,6 +95,36 @@ def test_line_api():
             "POST", f"{base}/line/control", {"action": "changeover", "product": "Кефир 0,5 л"}
         )
         assert _request("GET", f"{base}/line/state")["product"] == "Кефир 0,5 л"
+    finally:
+        httpd.shutdown()
+        httpd.server_close()
+
+
+def test_plc_api():
+    printer = PrinterState(name="sim", port=0)
+    simulator = Simulator([printer])
+    line = LineEngine([printer])
+    plc = SoftPlc(line)
+    httpd = start_control(simulator, "127.0.0.1", 0, line=line, plc=plc)
+    port = httpd.server_address[1]
+    threading.Thread(target=httpd.serve_forever, daemon=True).start()
+    base = f"http://127.0.0.1:{port}"
+    try:
+        snapshot = _request("GET", f"{base}/plc")
+        assert snapshot["enabled"] is True
+
+        _request(
+            "POST",
+            f"{base}/plc/rules",
+            {"rules": [{"name": "r1", "when": [], "then": []}]},
+        )
+        assert len(_request("GET", f"{base}/plc")["rules"]) == 1
+
+        _request("POST", f"{base}/plc/enable", {"enabled": False})
+        assert _request("GET", f"{base}/plc")["enabled"] is False
+
+        _request("DELETE", f"{base}/plc/rules/r1")
+        assert _request("GET", f"{base}/plc")["rules"] == []
     finally:
         httpd.shutdown()
         httpd.server_close()

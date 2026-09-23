@@ -112,6 +112,23 @@ details summary{cursor:pointer;color:var(--muted);font-size:14px}
       <div style="margin-top:10px"><table id="tags"></table></div>
     </details>
   </div>
+
+  <div class="panel">
+    <h2>Soft-PLC <label style="font-weight:400;font-size:13px;color:var(--muted)">
+      <input type="checkbox" id="plc-enabled" style="width:auto"> включён</label></h2>
+    <p class="muted" style="font-size:12px;margin-bottom:8px">
+      Правила: <code>when</code> — условия по тегам (AND), <code>then</code> — действия
+      <code>set</code>/<code>control</code>, <code>edge:true</code> — срабатывание по фронту.
+    </p>
+    <textarea id="plc-rules" spellcheck="false"
+      style="width:100%;min-height:190px;background:#0b1119;border:1px solid var(--line);
+      color:var(--text);border-radius:9px;padding:10px;font-family:ui-monospace,Consolas,monospace;font-size:12px"></textarea>
+    <div style="display:flex;gap:8px;margin-top:8px;align-items:center;flex-wrap:wrap">
+      <button id="plc-save">Сохранить правила</button>
+      <button class="ghost" id="plc-example">Пример</button>
+      <span class="muted" id="plc-status" style="font-size:12px"></span>
+    </div>
+  </div>
 </main>
 <script>
 const FAULTS = [
@@ -244,6 +261,36 @@ async function renderTags() {
   table.innerHTML = rows.join("");
 }
 
+const PLC_EXAMPLE = {
+  rules: [
+    {
+      name: "stop_when_full",
+      enabled: true,
+      when: [{tag: "line.accumulator_full", op: "==", value: true}],
+      then: [{set: "line.stop", value: true}],
+    },
+    {
+      name: "changeover_every_10",
+      enabled: true,
+      edge: true,
+      when: [{tag: "line.produced", op: ">=", value: 10}],
+      then: [{control: "changeover"}],
+    },
+  ],
+};
+
+async function refreshPlc(fillEditor) {
+  const plc = await api("/plc");
+  document.getElementById("plc-enabled").checked = plc.enabled;
+  if (fillEditor) {
+    document.getElementById("plc-rules").value = JSON.stringify({rules: plc.rules}, null, 2);
+  }
+  const names = Object.keys(plc.stats || {});
+  const fired = names.map((n) => n + ": " + plc.stats[n].fired);
+  document.getElementById("plc-status").textContent =
+    "правил: " + plc.rules.length + (fired.length ? " · срабатываний → " + fired.join(", ") : "");
+}
+
 async function refreshLine() {
   const s = await api("/line/state");
   renderLine(s);
@@ -276,11 +323,28 @@ document.getElementById("btn-changeover").addEventListener("click", () => {
 document.getElementById("speed").addEventListener("change", (e) => {
   api("/line/control", "POST", {action: "speed", speed: parseFloat(e.target.value)});
 });
+document.getElementById("plc-enabled").addEventListener("change", (e) => {
+  api("/plc/enable", "POST", {enabled: e.target.checked}).then(() => refreshPlc(false));
+});
+document.getElementById("plc-save").addEventListener("click", async () => {
+  try {
+    const parsed = JSON.parse(document.getElementById("plc-rules").value || "{}");
+    await api("/plc/rules", "POST", {rules: parsed.rules || parsed});
+    refreshPlc(false);
+  } catch (err) {
+    document.getElementById("plc-status").textContent = "ошибка JSON: " + err.message;
+  }
+});
+document.getElementById("plc-example").addEventListener("click", () => {
+  document.getElementById("plc-rules").value = JSON.stringify(PLC_EXAMPLE, null, 2);
+});
 
 init();
 refreshPrinters();
+refreshPlc(true);
 setInterval(refreshLine, 400);
 setInterval(refreshPrinters, 2500);
+setInterval(() => refreshPlc(false), 2000);
 </script>
 </body>
 </html>

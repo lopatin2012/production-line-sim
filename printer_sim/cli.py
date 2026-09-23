@@ -11,15 +11,17 @@ from .control import start_control
 from .line import LineEngine
 from .modbus import ModbusServer
 from .server import PrinterServer
+from .softplc import SoftPlc
 from .state import PrinterState, Simulator
 
 logger = logging.getLogger("printer_sim")
 TICK_SECONDS = 0.1
 
 
-async def _tick_loop(line: LineEngine, dt: float = TICK_SECONDS) -> None:
+async def _tick_loop(line: LineEngine, plc: SoftPlc, dt: float = TICK_SECONDS) -> None:
     while True:
         await asyncio.sleep(dt)
+        plc.tick(dt)
         line.tick(dt)
 
 
@@ -42,6 +44,7 @@ async def run(args: argparse.Namespace) -> None:
     printers = load_printers(args)
     simulator = Simulator(printers)
     line = LineEngine(printers)
+    plc = SoftPlc(line, enabled=args.plc, file=args.plc_file)
     servers: list[PrinterServer] = []
     for printer in printers:
         server = PrinterServer(simulator, printer, host=args.host)
@@ -51,7 +54,9 @@ async def run(args: argparse.Namespace) -> None:
     if args.autostart:
         line.control("start")
     line.events.publish("boot", "Симулятор линии запущен")
-    httpd = start_control(simulator, args.control_host, args.control_port, line=line)
+    httpd = start_control(
+        simulator, args.control_host, args.control_port, line=line, plc=plc
+    )
     threading.Thread(target=httpd.serve_forever, daemon=True).start()
     logger.info("control API + HMI on http://%s:%s", args.control_host, args.control_port)
     modbus = None
@@ -65,7 +70,7 @@ async def run(args: argparse.Namespace) -> None:
         except OSError as exc:
             logger.warning("Modbus TCP не запущен: %s", exc)
             modbus = None
-    ticker = asyncio.create_task(_tick_loop(line))
+    ticker = asyncio.create_task(_tick_loop(line, plc))
     try:
         await asyncio.gather(*(server.serve_forever() for server in servers))
     finally:
@@ -104,6 +109,13 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--modbus-host", default="127.0.0.1")
     parser.add_argument("--modbus-port", type=int, default=5020)
     parser.add_argument("--modbus-unit", type=int, default=1)
+    parser.add_argument(
+        "--plc",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="включить встроенный soft-PLC",
+    )
+    parser.add_argument("--plc-file", default=None, help="JSON-файл с правилами soft-PLC")
     parser.add_argument("--log-level", default="info")
     return parser
 

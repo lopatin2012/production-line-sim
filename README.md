@@ -110,11 +110,34 @@ print(client.read_input_registers(0, 1))   # line.produced
 client.close()
 ```
 
+## Soft-PLC
+
+Встроенный движок логики поверх тех же тегов, что и Modbus. Правило — это
+`when` (условия по тегам, объединяются по AND) и `then` (действия). Действия:
+`{"set": "тег", "value": ...}` и `{"control": "start|stop|jam|clear|scanner_fault|speed|changeover", ...}`.
+`"edge": true` — срабатывание по фронту (иначе уровень). Пример —
+`plc_rules.example.json`.
+
+```bash
+python -m printer_sim --plc-file plc_rules.example.json
+```
+
+```bash
+curl http://127.0.0.1:9200/plc
+curl -X POST http://127.0.0.1:9200/plc/rules -H "Content-Type: application/json" \
+  -d '{"rule":{"name":"jam","when":[{"tag":"line.produced","op":">=","value":3}],"then":[{"set":"line.jam","value":true}]}}'
+curl -X POST http://127.0.0.1:9200/plc/enable -H "Content-Type: application/json" -d '{"enabled":false}'
+curl -X DELETE http://127.0.0.1:9200/plc/rules/jam
+```
+
+В HMI есть панель Soft-PLC: включение, редактирование правил (JSON), кнопка
+«Пример», счётчики срабатываний.
+
 ## Roadmap АСУТП
 
 - [x] Модель линии, движок, теги, события, HMI.
 - [x] **Modbus TCP** — шлюз «теги ↔ coils/registers», подключение ПЛК/OpenPLC.
-- [ ] **Soft-PLC** — встроенный движок логики (правила/ST-подобное) поверх тегов.
+- [x] **Soft-PLC** — встроенный движок логики (правила) поверх тегов.
 - [ ] **OPC UA** (`asyncua`), **EtherNet/IP** (`pycomm3`/`cpppo`), **S7** (`snap7`).
 - [ ] Смена продукта как событие для внешних программ (реакция ПЛК/SCADA).
 
